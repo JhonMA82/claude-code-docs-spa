@@ -1,12 +1,11 @@
 """Tests for fetcher module."""
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock, AsyncMock
+import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
-import json
-import asyncio
-from xml.etree import ElementTree as ET
+from unittest.mock import Mock, patch
+
+import pytest
 
 from claude_code_docs_spa.fetcher.config import FetcherConfig
 from claude_code_docs_spa.fetcher.core import ClaudeCodeFetcher
@@ -34,7 +33,7 @@ class TestFetcherConfig:
                 docs_dir=temp_dir,
                 max_retries=5,
                 timeout=60,
-                user_agent="Custom-Agent/1.0"
+                user_agent="Custom-Agent/1.0",
             )
 
             assert config.docs_dir == Path(temp_dir)
@@ -46,7 +45,7 @@ class TestFetcherConfig:
         """Test config with custom sitemap URLs."""
         custom_urls = [
             "https://custom.com/sitemap1.xml",
-            "https://custom.com/sitemap2.xml"
+            "https://custom.com/sitemap2.xml",
         ]
         config = FetcherConfig(sitemap_urls=custom_urls)
 
@@ -128,7 +127,7 @@ class TestClaudeCodeFetcher:
         fetcher = ClaudeCodeFetcher(config=config)
 
         assert fetcher.config == config
-        assert hasattr(fetcher, 'logger')
+        assert hasattr(fetcher, "logger")
 
     @pytest.mark.asyncio
     async def test_discover_pages_success(self, fetcher):
@@ -148,7 +147,7 @@ class TestClaudeCodeFetcher:
         """
         mock_response.raise_for_status = Mock()
 
-        with patch('aiohttp.ClientSession.get') as mock_get:
+        with patch("aiohttp.ClientSession.get") as mock_get:
             mock_get.return_value.__aenter__.return_value = mock_response
 
             pages = await fetcher._discover_pages("https://example.com/sitemap.xml")
@@ -159,7 +158,7 @@ class TestClaudeCodeFetcher:
     @pytest.mark.asyncio
     async def test_discover_pages_network_error(self, fetcher):
         """Test page discovery with network error."""
-        with patch('aiohttp.ClientSession.get') as mock_get:
+        with patch("aiohttp.ClientSession.get") as mock_get:
             mock_get.side_effect = Exception("Network error")
 
             pages = await fetcher._discover_pages("https://example.com/sitemap.xml")
@@ -173,7 +172,7 @@ class TestClaudeCodeFetcher:
         mock_response.text = "invalid xml"
         mock_response.raise_for_status = Mock()
 
-        with patch('aiohttp.ClientSession.get') as mock_get:
+        with patch("aiohttp.ClientSession.get") as mock_get:
             mock_get.return_value.__aenter__.return_value = mock_response
 
             pages = await fetcher._discover_pages("https://example.com/sitemap.xml")
@@ -187,7 +186,7 @@ class TestClaudeCodeFetcher:
         mock_response.text = "# Test Content\n\nThis is a test."
         mock_response.raise_for_status = Mock()
 
-        with patch('aiohttp.ClientSession.get') as mock_get:
+        with patch("aiohttp.ClientSession.get") as mock_get:
             mock_get.return_value.__aenter__.return_value = mock_response
 
             content = await fetcher._fetch_markdown_content("https://example.com/page")
@@ -198,7 +197,7 @@ class TestClaudeCodeFetcher:
     @pytest.mark.asyncio
     async def test_fetch_markdown_content_network_error(self, fetcher):
         """Test markdown content fetching with network error."""
-        with patch('aiohttp.ClientSession.get') as mock_get:
+        with patch("aiohttp.ClientSession.get") as mock_get:
             mock_get.side_effect = Exception("Network error")
 
             content = await fetcher._fetch_markdown_content("https://example.com/page")
@@ -242,7 +241,7 @@ class TestClaudeCodeFetcher:
         assert file_path.exists()
         assert file_path.is_file()
 
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, encoding="utf-8") as f:
             saved_content = f.read()
             assert saved_content == content
 
@@ -253,8 +252,8 @@ class TestClaudeCodeFetcher:
             "version": "1.0",
             "pages": [
                 {"url": "test1", "filename": "test1.md"},
-                {"url": "test2", "filename": "test2.md"}
-            ]
+                {"url": "test2", "filename": "test2.md"},
+            ],
         }
 
         await fetcher._save_manifest_file(manifest)
@@ -263,7 +262,7 @@ class TestClaudeCodeFetcher:
         assert manifest_path.exists()
         assert manifest_path.is_file()
 
-        with open(manifest_path, 'r', encoding='utf-8') as f:
+        with open(manifest_path, encoding="utf-8") as f:
             saved_manifest = json.load(f)
             assert saved_manifest == manifest
 
@@ -274,11 +273,11 @@ class TestClaudeCodeFetcher:
             "version": "1.0",
             "pages": [
                 {"url": "test1", "filename": "test1.md", "last_modified": "2024-01-01"}
-            ]
+            ],
         }
 
         manifest_path = fetcher.config.docs_dir / fetcher.config.manifest_file
-        with open(manifest_path, 'w', encoding='utf-8') as f:
+        with open(manifest_path, "w", encoding="utf-8") as f:
             json.dump(existing_manifest, f)
 
         loaded_manifest = await fetcher._load_existing_manifest()
@@ -296,8 +295,7 @@ class TestClaudeCodeFetcher:
     async def test_should_fetch_page_new_page(self, fetcher):
         """Test should fetch new page."""
         should_fetch = await fetcher._should_fetch_page(
-            {"url": "https://example.com/new-page", "last_modified": "2024-01-01"},
-            {}
+            {"url": "https://example.com/new-page", "last_modified": "2024-01-01"}, {}
         )
 
         assert should_fetch is True
@@ -307,16 +305,26 @@ class TestClaudeCodeFetcher:
         """Test should fetch when page exists and not modified."""
         existing_manifest = {
             "pages": [
-                {"url": "https://example.com/existing-page", "filename": "existing.md", "last_modified": "2024-01-01"}
+                {
+                    "url": "https://example.com/existing-page",
+                    "filename": "existing.md",
+                    "last_modified": "2024-01-01",
+                }
             ]
         }
 
-        page_data = {"url": "https://example.com/existing-page", "last_modified": "2024-01-01"}
+        page_data = {
+            "url": "https://example.com/existing-page",
+            "last_modified": "2024-01-01",
+        }
 
-        with patch('os.path.exists', return_value=True), \
-             patch('os.path.getmtime', return_value=1640995200):  # 2022-01-01
-
-            should_fetch = await fetcher._should_fetch_page(page_data, existing_manifest)
+        with (
+            patch("os.path.exists", return_value=True),
+            patch("os.path.getmtime", return_value=1640995200),
+        ):  # 2022-01-01
+            should_fetch = await fetcher._should_fetch_page(
+                page_data, existing_manifest
+            )
 
             assert should_fetch is False
 
@@ -325,16 +333,26 @@ class TestClaudeCodeFetcher:
         """Test should fetch when page exists and was modified."""
         existing_manifest = {
             "pages": [
-                {"url": "https://example.com/modified-page", "filename": "modified.md", "last_modified": "2024-01-01"}
+                {
+                    "url": "https://example.com/modified-page",
+                    "filename": "modified.md",
+                    "last_modified": "2024-01-01",
+                }
             ]
         }
 
-        page_data = {"url": "https://example.com/modified-page", "last_modified": "2024-01-02"}
+        page_data = {
+            "url": "https://example.com/modified-page",
+            "last_modified": "2024-01-02",
+        }
 
-        with patch('os.path.exists', return_value=True), \
-             patch('os.path.getmtime', return_value=1640995200):  # 2022-01-01
-
-            should_fetch = await fetcher._should_fetch_page(page_data, existing_manifest)
+        with (
+            patch("os.path.exists", return_value=True),
+            patch("os.path.getmtime", return_value=1640995200),
+        ):  # 2022-01-01
+            should_fetch = await fetcher._should_fetch_page(
+                page_data, existing_manifest
+            )
 
             assert should_fetch is True
 
@@ -343,11 +361,12 @@ class TestClaudeCodeFetcher:
         """Test fetch all documentation in dry run mode."""
         pages = [
             {"url": "https://example.com/page1", "last_modified": "2024-01-01"},
-            {"url": "https://example.com/page2", "last_modified": "2024-01-01"}
+            {"url": "https://example.com/page2", "last_modified": "2024-01-01"},
         ]
 
-        with patch.object(fetcher, '_discover_pages', return_value=pages) as mock_discover:
-
+        with patch.object(
+            fetcher, "_discover_pages", return_value=pages
+        ) as mock_discover:
             result = await fetcher.fetch_all_documentation(dry_run=True)
 
             assert result["fetched"] == 2
@@ -361,13 +380,16 @@ class TestClaudeCodeFetcher:
     @pytest.mark.asyncio
     async def test_fetch_all_documentation_with_retries(self, fetcher):
         """Test fetch all documentation with retry mechanism."""
-        pages = [
-            {"url": "https://example.com/page1", "last_modified": "2024-01-01"}
-        ]
+        pages = [{"url": "https://example.com/page1", "last_modified": "2024-01-01"}]
 
-        with patch.object(fetcher, '_discover_pages', return_value=pages), \
-             patch.object(fetcher, '_fetch_markdown_content', side_effect=Exception("Network error")):
-
+        with (
+            patch.object(fetcher, "_discover_pages", return_value=pages),
+            patch.object(
+                fetcher,
+                "_fetch_markdown_content",
+                side_effect=Exception("Network error"),
+            ),
+        ):
             result = await fetcher.fetch_all_documentation()
 
             assert result["fetched"] == 0
@@ -378,14 +400,17 @@ class TestClaudeCodeFetcher:
         """Test rate limiting during documentation fetch."""
         pages = [
             {"url": "https://example.com/page1", "last_modified": "2024-01-01"},
-            {"url": "https://example.com/page2", "last_modified": "2024-01-01"}
+            {"url": "https://example.com/page2", "last_modified": "2024-01-01"},
         ]
 
-        with patch.object(fetcher, '_discover_pages', return_value=pages), \
-             patch.object(fetcher, '_fetch_markdown_content', return_value="# Test Content"), \
-             patch.object(fetcher, '_validate_markdown', return_value=True), \
-             patch('asyncio.sleep') as mock_sleep:
-
+        with (
+            patch.object(fetcher, "_discover_pages", return_value=pages),
+            patch.object(
+                fetcher, "_fetch_markdown_content", return_value="# Test Content"
+            ),
+            patch.object(fetcher, "_validate_markdown", return_value=True),
+            patch("asyncio.sleep") as mock_sleep,
+        ):
             result = await fetcher.fetch_all_documentation()
 
             assert result["fetched"] == 2
@@ -404,14 +429,23 @@ class TestClaudeCodeFetcher:
     async def test_skip_non_spanish_pages(self, fetcher):
         """Test that non-Spanish pages are skipped."""
         pages = [
-            {"url": "https://docs.anthropic.com/en/docs/claude-code/page1", "last_modified": "2024-01-01"},
-            {"url": "https://docs.anthropic.com/es/docs/claude-code/page2", "last_modified": "2024-01-01"}
+            {
+                "url": "https://docs.anthropic.com/en/docs/claude-code/page1",
+                "last_modified": "2024-01-01",
+            },
+            {
+                "url": "https://docs.anthropic.com/es/docs/claude-code/page2",
+                "last_modified": "2024-01-01",
+            },
         ]
 
-        with patch.object(fetcher, '_discover_pages', return_value=pages), \
-             patch.object(fetcher, '_fetch_markdown_content', return_value="# Test Content"), \
-             patch.object(fetcher, '_validate_markdown', return_value=True):
-
+        with (
+            patch.object(fetcher, "_discover_pages", return_value=pages),
+            patch.object(
+                fetcher, "_fetch_markdown_content", return_value="# Test Content"
+            ),
+            patch.object(fetcher, "_validate_markdown", return_value=True),
+        ):
             result = await fetcher.fetch_all_documentation()
 
             assert result["fetched"] == 1  # Only Spanish page should be fetched
@@ -420,14 +454,23 @@ class TestClaudeCodeFetcher:
     async def test_skip_patterns(self, fetcher):
         """Test that pages with skip patterns are ignored."""
         pages = [
-            {"url": "https://docs.anthropic.com/es/docs/claude-code/tool-use/example", "last_modified": "2024-01-01"},
-            {"url": "https://docs.anthropic.com/es/docs/claude-code/getting-started", "last_modified": "2024-01-01"}
+            {
+                "url": "https://docs.anthropic.com/es/docs/claude-code/tool-use/example",
+                "last_modified": "2024-01-01",
+            },
+            {
+                "url": "https://docs.anthropic.com/es/docs/claude-code/getting-started",
+                "last_modified": "2024-01-01",
+            },
         ]
 
-        with patch.object(fetcher, '_discover_pages', return_value=pages), \
-             patch.object(fetcher, '_fetch_markdown_content', return_value="# Test Content"), \
-             patch.object(fetcher, '_validate_markdown', return_value=True):
-
+        with (
+            patch.object(fetcher, "_discover_pages", return_value=pages),
+            patch.object(
+                fetcher, "_fetch_markdown_content", return_value="# Test Content"
+            ),
+            patch.object(fetcher, "_validate_markdown", return_value=True),
+        ):
             result = await fetcher.fetch_all_documentation()
 
             assert result["fetched"] == 1  # Should skip tool-use pattern
@@ -436,7 +479,7 @@ class TestClaudeCodeFetcher:
         """Test that logger is properly initialized."""
         fetcher = ClaudeCodeFetcher(config=config)
 
-        assert hasattr(fetcher, 'logger')
+        assert hasattr(fetcher, "logger")
         assert fetcher.logger is not None
 
     @pytest.mark.asyncio
@@ -447,13 +490,16 @@ class TestClaudeCodeFetcher:
         pages = [
             {"url": "https://example.com/page1", "last_modified": "2024-01-01"},
             {"url": "https://example.com/page2", "last_modified": "2024-01-01"},
-            {"url": "https://example.com/page3", "last_modified": "2024-01-01"}
+            {"url": "https://example.com/page3", "last_modified": "2024-01-01"},
         ]
 
-        with patch.object(fetcher, '_discover_pages', return_value=pages), \
-             patch.object(fetcher, '_fetch_markdown_content', return_value="# Test Content"), \
-             patch.object(fetcher, '_validate_markdown', return_value=True):
-
+        with (
+            patch.object(fetcher, "_discover_pages", return_value=pages),
+            patch.object(
+                fetcher, "_fetch_markdown_content", return_value="# Test Content"
+            ),
+            patch.object(fetcher, "_validate_markdown", return_value=True),
+        ):
             result = await fetcher.fetch_all_documentation()
 
             assert result["fetched"] == 3

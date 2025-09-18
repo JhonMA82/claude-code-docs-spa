@@ -1,20 +1,21 @@
 """Tests for exceptions module."""
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 from claude_code_docs_spa.exceptions import (
     ClaudeCodeDocsError,
     ConfigurationError,
-    NetworkError,
-    FileOperationError,
-    ValidationError,
-    PermissionError,
-    InstallerError,
+    DocumentProcessingError,
     FetcherError,
+    FileOperationError,
+    InstallerError,
+    NetworkError,
+    PermissionError,
     RateLimitError,
     TimeoutError,
-    DocumentProcessingError,
+    ValidationError,
 )
 
 
@@ -51,7 +52,10 @@ class TestConfigurationError:
         config_file = "/path/to/config.toml"
         error = ConfigurationError("Invalid configuration", config_file)
 
-        assert str(error) == f"Configuration error: Invalid configuration (file: {config_file})"
+        assert (
+            str(error)
+            == f"Configuration error: Invalid configuration (file: {config_file})"
+        )
         assert error.config_file == Path(config_file)
 
     def test_config_error_inheritance(self):
@@ -116,7 +120,9 @@ class TestFileOperationError:
         file_path = "/path/to/file.txt"
         error = FileOperationError("Permission denied", file_path)
 
-        assert str(error) == f"File operation error: Permission denied (file: {file_path})"
+        assert (
+            str(error) == f"File operation error: Permission denied (file: {file_path})"
+        )
         assert error.file_path == Path(file_path)
         assert error.operation is None
 
@@ -133,7 +139,10 @@ class TestFileOperationError:
         file_path = "/path/to/file.txt"
         error = FileOperationError("Write failed", file_path, "write")
 
-        assert str(error) == f"File operation error: Write failed (operation: write) (file: {file_path})"
+        assert (
+            str(error)
+            == f"File operation error: Write failed (operation: write) (file: {file_path})"
+        )
         assert error.file_path == Path(file_path)
         assert error.operation == "write"
 
@@ -169,7 +178,10 @@ class TestValidationError:
         """Test validation error with field and value."""
         error = ValidationError("Invalid email", field="email", value="invalid_email")
 
-        assert str(error) == "Validation error: Invalid email (field: email) (value: invalid_email)"
+        assert (
+            str(error)
+            == "Validation error: Invalid email (field: email) (value: invalid_email)"
+        )
         assert error.field == "email"
         assert error.value == "invalid_email"
 
@@ -246,7 +258,9 @@ class TestRateLimitError:
         url = "https://example.com/api"
         error = RateLimitError("Too many requests", url)
 
-        assert str(error) == f"Network error: Too many requests (url: {url}) (status: 429)"
+        assert (
+            str(error) == f"Network error: Too many requests (url: {url}) (status: 429)"
+        )
         assert error.url == url
         assert error.status_code == 429
         assert error.retry_after is None
@@ -318,15 +332,23 @@ class TestDocumentProcessingError:
         doc_path = "/path/to/document.md"
         error = DocumentProcessingError("Processing failed", doc_path)
 
-        assert str(error) == f"Document processing error: Processing failed (document: {doc_path})"
+        assert (
+            str(error)
+            == f"Document processing error: Processing failed (document: {doc_path})"
+        )
         assert error.document_path == Path(doc_path)
         assert error.processing_step is None
 
     def test_document_error_with_processing_step(self):
         """Test document processing error with processing step."""
-        error = DocumentProcessingError("Processing failed", processing_step="validation")
+        error = DocumentProcessingError(
+            "Processing failed", processing_step="validation"
+        )
 
-        assert str(error) == "Document processing error: Processing failed (step: validation)"
+        assert (
+            str(error)
+            == "Document processing error: Processing failed (step: validation)"
+        )
         assert error.processing_step == "validation"
         assert error.document_path is None
 
@@ -335,7 +357,10 @@ class TestDocumentProcessingError:
         doc_path = "/path/to/document.md"
         error = DocumentProcessingError("Processing failed", doc_path, "validation")
 
-        assert str(error) == f"Document processing error: Processing failed (step: validation) (document: {doc_path})"
+        assert (
+            str(error)
+            == f"Document processing error: Processing failed (step: validation) (document: {doc_path})"
+        )
         assert error.document_path == Path(doc_path)
         assert error.processing_step == "validation"
 
@@ -394,7 +419,9 @@ class TestExceptionHierarchy:
     def test_exception_attributes(self):
         """Test that exception attributes are properly set."""
         error = ConfigurationError("Test error", "/path/to/config")
-        assert error.message == "Configuration error: Test error (file: /path/to/config)"
+        assert (
+            error.message == "Configuration error: Test error (file: /path/to/config)"
+        )
         assert error.config_file == Path("/path/to/config")
 
     def test_exception_str_representation(self):
@@ -408,7 +435,10 @@ class TestExceptionHierarchy:
             (PermissionError("Permission error"), "Permission error: Permission error"),
             (InstallerError("Installer error"), "Installer error: Installer error"),
             (FetcherError("Fetcher error"), "Fetcher error: Fetcher error"),
-            (DocumentProcessingError("Document error"), "Document processing error: Document error"),
+            (
+                DocumentProcessingError("Document error"),
+                "Document processing error: Document error",
+            ),
         ]
 
         for error, expected_message in exceptions_and_messages:

@@ -1,12 +1,13 @@
 """Tests for installer module."""
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock, AsyncMock
+import asyncio
+import json
+import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
-import json
-import asyncio
-import sys
+from unittest.mock import Mock, patch
+
+import pytest
 
 from claude_code_docs_spa.installer.config import InstallerConfig
 from claude_code_docs_spa.installer.core import ClaudeCodeInstaller
@@ -35,7 +36,7 @@ class TestInstallerConfig:
                 install_dir=Path(temp_dir) / "custom-install",
                 commands_dir=Path(temp_dir) / "custom-commands",
                 version="1.0.0",
-                helper_script_name="custom-helper.py"
+                helper_script_name="custom-helper.py",
             )
 
             assert config.install_dir == Path(temp_dir) / "custom-install"
@@ -48,7 +49,10 @@ class TestInstallerConfig:
         config = InstallerConfig(repo_url="https://github.com/test/repo")
 
         assert config.repo_url == "https://github.com/test/repo"
-        assert config.repo_zip_url == "https://github.com/test/repo/archive/refs/heads/main.zip"
+        assert (
+            config.repo_zip_url
+            == "https://github.com/test/repo/archive/refs/heads/main.zip"
+        )
 
         with pytest.raises(ValueError):
             InstallerConfig(repo_url="invalid-url")
@@ -63,7 +67,7 @@ class TestInstallerConfig:
         config = InstallerConfig(
             install_dir="/custom/path",
             commands_dir="/another/path",
-            settings_file="/settings.json"
+            settings_file="/settings.json",
         )
 
         assert isinstance(config.install_dir, Path)
@@ -97,7 +101,7 @@ class TestHelperScriptGenerator:
             return InstallerConfig(
                 install_dir=Path(temp_dir) / "install",
                 commands_dir=Path(temp_dir) / "commands",
-                helper_script_name="test-helper.py"
+                helper_script_name="test-helper.py",
             )
 
     @pytest.fixture
@@ -110,7 +114,7 @@ class TestHelperScriptGenerator:
         generator = HelperScriptGenerator(config)
 
         assert generator.config == config
-        assert hasattr(generator, 'logger')
+        assert hasattr(generator, "logger")
 
     def test_generate_helper_script(self, generator):
         """Test helper script generation."""
@@ -132,7 +136,7 @@ class TestHelperScriptGenerator:
         assert script_path.exists()
         assert script_path.is_file()
 
-        with open(script_path, 'r', encoding='utf-8') as f:
+        with open(script_path, encoding="utf-8") as f:
             saved_content = f.read()
             assert saved_content == script_content
 
@@ -191,7 +195,7 @@ class TestClaudeCodeInstaller:
             return InstallerConfig(
                 install_dir=Path(temp_dir) / "install",
                 commands_dir=Path(temp_dir) / "commands",
-                settings_file=Path(temp_dir) / "settings.json"
+                settings_file=Path(temp_dir) / "settings.json",
             )
 
     @pytest.fixture
@@ -204,8 +208,8 @@ class TestClaudeCodeInstaller:
         installer = ClaudeCodeInstaller(config=config)
 
         assert installer.config == config
-        assert hasattr(installer, 'logger')
-        assert hasattr(installer, 'helper_generator')
+        assert hasattr(installer, "logger")
+        assert hasattr(installer, "helper_generator")
 
     @pytest.mark.asyncio
     async def test_create_directories(self, installer):
@@ -224,9 +228,10 @@ class TestClaudeCodeInstaller:
         mock_response.iter_content.return_value = [b"test data 1", b"test data 2"]
         mock_response.raise_for_status = Mock()
 
-        with patch('requests.get', return_value=mock_response), \
-             patch('zipfile.ZipFile') as mock_zip:
-
+        with (
+            patch("requests.get", return_value=mock_response),
+            patch("zipfile.ZipFile") as mock_zip,
+        ):
             result = await installer._download_repository()
 
             assert result == mock_zip.return_value
@@ -235,8 +240,7 @@ class TestClaudeCodeInstaller:
     @pytest.mark.asyncio
     async def test_download_repository_error(self, installer):
         """Test repository download with error."""
-        with patch('requests.get', side_effect=Exception("Network error")):
-
+        with patch("requests.get", side_effect=Exception("Network error")):
             result = await installer._download_repository()
 
             assert result is None
@@ -247,8 +251,7 @@ class TestClaudeCodeInstaller:
         mock_zip = Mock()
         mock_zip.extractall = Mock()
 
-        with patch('zipfile.ZipFile', return_value=mock_zip):
-
+        with patch("zipfile.ZipFile", return_value=mock_zip):
             result = await installer._extract_repository(mock_zip)
 
             assert result is True
@@ -296,7 +299,7 @@ class TestClaudeCodeInstaller:
         command_file = installer.config.command_file_path
         assert command_file.exists()
 
-        content = command_file.read_text(encoding='utf-8')
+        content = command_file.read_text(encoding="utf-8")
         assert "# Test Content" in content
 
     @pytest.mark.asyncio
@@ -309,7 +312,7 @@ class TestClaudeCodeInstaller:
 
         await installer._update_claude_settings()
 
-        settings = json.loads(settings_file.read_text(encoding='utf-8'))
+        settings = json.loads(settings_file.read_text(encoding="utf-8"))
         assert "docs_file" in settings
         assert settings["docs_file"] == str(installer.config.command_file_path)
 
@@ -321,22 +324,31 @@ class TestClaudeCodeInstaller:
         settings_file = installer.config.settings_file
         assert settings_file.exists()
 
-        settings = json.loads(settings_file.read_text(encoding='utf-8'))
+        settings = json.loads(settings_file.read_text(encoding="utf-8"))
         assert "docs_file" in settings
 
     @pytest.mark.asyncio
     async def test_install_success(self, installer):
         """Test successful installation."""
-        with patch.object(installer, '_create_directories') as mock_create, \
-             patch.object(installer, '_download_repository') as mock_download, \
-             patch.object(installer, '_extract_repository', return_value=True) as mock_extract, \
-             patch.object(installer, '_copy_docs_to_install_dir') as mock_copy, \
-             patch.object(installer, '_create_command_file') as mock_command, \
-             patch.object(installer, '_update_claude_settings') as mock_update, \
-             patch.object(installer.helper_generator, 'generate_helper_script', return_value="test script") as mock_generate, \
-             patch.object(installer.helper_generator, 'save_helper_script') as mock_save, \
-             patch.object(installer.helper_generator, 'make_script_executable') as mock_exec:
-
+        with (
+            patch.object(installer, "_create_directories") as mock_create,
+            patch.object(installer, "_download_repository") as mock_download,
+            patch.object(
+                installer, "_extract_repository", return_value=True
+            ) as mock_extract,
+            patch.object(installer, "_copy_docs_to_install_dir") as mock_copy,
+            patch.object(installer, "_create_command_file") as mock_command,
+            patch.object(installer, "_update_claude_settings") as mock_update,
+            patch.object(
+                installer.helper_generator,
+                "generate_helper_script",
+                return_value="test script",
+            ) as mock_generate,
+            patch.object(installer.helper_generator, "save_helper_script") as mock_save,
+            patch.object(
+                installer.helper_generator, "make_script_executable"
+            ) as mock_exec,
+        ):
             result = await installer.install()
 
             assert result["installed"] is True
@@ -356,8 +368,9 @@ class TestClaudeCodeInstaller:
     @pytest.mark.asyncio
     async def test_install_directory_creation_error(self, installer):
         """Test installation with directory creation error."""
-        with patch.object(installer, '_create_directories', side_effect=Exception("Permission denied")):
-
+        with patch.object(
+            installer, "_create_directories", side_effect=Exception("Permission denied")
+        ):
             result = await installer.install()
 
             assert result["installed"] is False
@@ -366,9 +379,10 @@ class TestClaudeCodeInstaller:
     @pytest.mark.asyncio
     async def test_install_download_error(self, installer):
         """Test installation with download error."""
-        with patch.object(installer, '_create_directories'), \
-             patch.object(installer, '_download_repository', return_value=None):
-
+        with (
+            patch.object(installer, "_create_directories"),
+            patch.object(installer, "_download_repository", return_value=None),
+        ):
             result = await installer.install()
 
             assert result["installed"] is False
@@ -377,10 +391,11 @@ class TestClaudeCodeInstaller:
     @pytest.mark.asyncio
     async def test_install_extraction_error(self, installer):
         """Test installation with extraction error."""
-        with patch.object(installer, '_create_directories'), \
-             patch.object(installer, '_download_repository', return_value=Mock()), \
-             patch.object(installer, '_extract_repository', return_value=False):
-
+        with (
+            patch.object(installer, "_create_directories"),
+            patch.object(installer, "_download_repository", return_value=Mock()),
+            patch.object(installer, "_extract_repository", return_value=False),
+        ):
             result = await installer.install()
 
             assert result["installed"] is False
@@ -403,8 +418,9 @@ class TestClaudeCodeInstaller:
         installer.config.helper_script_path.touch()
         installer.config.command_file_path.touch()
 
-        with patch.object(installer, '_safe_remove_directory', return_value=True) as mock_remove:
-
+        with patch.object(
+            installer, "_safe_remove_directory", return_value=True
+        ) as mock_remove:
             result = await installer.uninstall()
 
             assert result["uninstalled"] is True
@@ -458,8 +474,7 @@ class TestClaudeCodeInstaller:
         test_dir = installer.config.install_dir / "test_dir"
         test_dir.mkdir(parents=True)
 
-        with patch('shutil.rmtree', side_effect=PermissionError("Permission denied")):
-
+        with patch("shutil.rmtree", side_effect=PermissionError("Permission denied")):
             result = await installer._safe_remove_directory(test_dir)
 
             assert result is False
@@ -519,16 +534,21 @@ class TestClaudeCodeInstaller:
         installer.config.install_dir.mkdir(parents=True)
         installer.config.helper_script_path.touch()
 
-        with patch.object(installer, '_create_directories'), \
-             patch.object(installer, '_download_repository', return_value=Mock()), \
-             patch.object(installer, '_extract_repository', return_value=True), \
-             patch.object(installer, '_copy_docs_to_install_dir'), \
-             patch.object(installer, '_create_command_file'), \
-             patch.object(installer, '_update_claude_settings'), \
-             patch.object(installer.helper_generator, 'generate_helper_script', return_value="test script"), \
-             patch.object(installer.helper_generator, 'save_helper_script'), \
-             patch.object(installer.helper_generator, 'make_script_executable'):
-
+        with (
+            patch.object(installer, "_create_directories"),
+            patch.object(installer, "_download_repository", return_value=Mock()),
+            patch.object(installer, "_extract_repository", return_value=True),
+            patch.object(installer, "_copy_docs_to_install_dir"),
+            patch.object(installer, "_create_command_file"),
+            patch.object(installer, "_update_claude_settings"),
+            patch.object(
+                installer.helper_generator,
+                "generate_helper_script",
+                return_value="test script",
+            ),
+            patch.object(installer.helper_generator, "save_helper_script"),
+            patch.object(installer.helper_generator, "make_script_executable"),
+        ):
             result = await installer.install(force=True)
 
             assert result["installed"] is True
@@ -536,11 +556,13 @@ class TestClaudeCodeInstaller:
     @pytest.mark.asyncio
     async def test_concurrent_installation(self, config):
         """Test concurrent installation attempts."""
+
         async def install_installer():
             installer = ClaudeCodeInstaller(config=config)
-            with patch.object(installer, '_create_directories'), \
-                 patch.object(installer, '_download_repository', return_value=None):
-
+            with (
+                patch.object(installer, "_create_directories"),
+                patch.object(installer, "_download_repository", return_value=None),
+            ):
                 return await installer.install(dry_run=True)
 
         # Run multiple installations concurrently
