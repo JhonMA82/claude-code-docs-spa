@@ -1,0 +1,86 @@
+[project]
+name = "claude-code-docs-spa"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "JhonMA82", email = "jhonmx21@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.11.9",
+    "structlog>=25.4.0",
+    "requests>=2.31.0",
+]
+
+[project.scripts]
+claude-code-docs-spa = "claude_code_docs_spa:main"
+claude-code-docs-spa-install = "claude_code_docs_spa:main"
+
+[build-system]
+requires = ["uv_build>=0.8.15,<0.9.0"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "N", "UP", "S", "B", "C4", "ICN", "PIE", "T20", "Q", "RET", "SIM", "ARG", "PTH", "ERA"]
+ignore = ["E501", "S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "ARG", "PLR2004"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+addopts = ["--strict-markers", "--strict-config", "--cov=src", "--cov-report=term-missing", "--cov-fail-under=80"]
+
+[tool.bandit]
+exclude_dirs = ["tests"]
+skips = ["B101"]
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:"
+]
+
+[dependency-groups]
+dev = [
+    "bandit>=1.8.6",
+    "mypy>=1.18.1",
+    "pre-commit>=4.3.0",
+    "pytest>=8.4.2",
+    "pytest-asyncio>=1.2.0",
+    "pytest-cov>=7.0.0",
+    "ruff>=0.13.0",
+    "python-dotenv>=1.0.0",
+    "httpx>=0.27.0",
+    "factory-boy>=3.3.0",
+    "pytest-mock>=3.14.0",
+]
